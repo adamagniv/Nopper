@@ -1,22 +1,26 @@
 import openai
+from gtts import gTTS
+from playsound import playsound
 from time import sleep
 from uuid import uuid4
+from os import remove
 from .nop_conn import NopConn
 
+MP3_FILENAME='nopper_msg.mp3'
 QUIT_MSG = 'NQUIT'
 WELCOME = ("Hello, my name is Nopper. I'm inviting you to use this platform to try and have a conversation with my help.\n"
         "Please read the following rules before we begin.\n"
         "The Rules:\n"
         "\t1. You are going to have a conversation with the other person behind the blinds.\n"
         "\t2. You are NOT ALLOWED TO SPEAK OUTLOUD! use only the interface I provide you.\n"
-        "\t3. I'll provide you with options to who you could talk to, you can choose any of them or by choosing OTHER.\n"
-        "\t4. If you chose OTHER, I'll be able to generate any persona you'll want me to. Just make sure to be as descriptive as you can so I'll be able to get it right.\n"
-        "\t5. You can talk about whatever you choose to. If you'll need an idea, I'll try to suggest something once we'll begin.\n"
+        "\t3. I'll provide you with options to who you could talk to,\n\t   you can choose any of them or by choosing OTHER.\n"
+        "\t4. If you chose OTHER, I'll be able to generate any persona you'll want me to.\n\t   Just make sure to be as descriptive as you can so I'll be able to get it right.\n"
+        "\t5. You can talk about whatever you choose to.\n\t   If you'll need an idea, I'll try to suggest something once we'll begin.\n"
         "\t6. If you want to quit please enter '" + QUIT_MSG + "' to shut me down.")
 
 NOPPER_PERSONA = ["27 years old afro-american male rapper",
                   "wise 89 years old chinese buddhist monk",
-                  "30 year old German female fashion designer"]
+                  "30 year old british female fashion designer"]
 
 CHOICE_L = ["\t[1] " + NOPPER_PERSONA[0] + ".",
             "\t[2] " + NOPPER_PERSONA[1] + ".",
@@ -64,6 +68,10 @@ class Nopper:
         self.nconn.teardown()
         if (self.should_log) and (not self.log.closed):
             self.log.close()
+        try:
+            remove(MP3_FILENAME)
+        except:
+            pass
 
     def create_log(self):
         log_path = ''
@@ -106,31 +114,10 @@ class Nopper:
         self.remote_name = self.nconn.NopRecv().strip()
 
         sleep(1.0)
-        print("All set!")
+        print("All set!\n")
 
         return True
 
-    #def slave_wait(self):
-    #    print(WAIT)
-    #    scene_choice = int(self.nconn.NopRecv().strip())
-    #    print("The other side chose scene: " + str(scene_choice))
-    #    valid = False
-    #    while(not valid):
-    #        resp = input("Do you accept? [Y/N] : ").upper()
-    #        if (resp != 'Y' and resp != 'N'):
-    #            print("invalid option! try again")
-    #            continue
-    #        valid = True
-
-    #    print("sending response to other side.")
-    #    self.nconn.NopSend(resp)
-
-    #    if (resp == 'Y'):
-    #        self.set_scene(scene_choice)
-    #        return True
-
-    #    return False
-    
     def create_gpt_response(self, text=''):
         completion = openai.Completion.create(engine=self.gpt_engine,
                                                 prompt=text,
@@ -150,20 +137,20 @@ class Nopper:
         return rephrased_msg
     
     def topic_example(self):
-        prompt = "give me one example for a topic of conversation people might disagree about"
+        prompt = "give me three examples for a topic of conversation people might disagree about"
         return self.create_gpt_response(prompt).strip()
 
     def game(self):
         print(WELCOME)
         sleep(2)
-        print("Let us begin.")
+        print("Let us begin.\n")
         self.choose_persona()
 
         # Starting Finally...
         quit = False
         if (self.is_master):
             topic = self.topic_example()
-            print("You are starting the conversation.\nA topic for suggestion (you don't have to use it):\n" + topic)
+            print("You are starting the conversation.\n\nA few topics for suggestion (you don't have to use them):\n" + topic)
             self.nconn.NopSend(topic)
 
             quit = not self.send_message()
@@ -171,7 +158,7 @@ class Nopper:
                 return
         else:
             topic = self.nconn.NopRecv().strip()
-            print("Please wait for the other side to start the conversation.\nA topic for suggestion (you don't have to use it):\n" + topic)
+            print("Please wait for the other side to start the conversation.\n\nA few topics for suggestion (you don't have to use them):\n" + topic)
 
         while (True):
             quit = not self.recv_message()
@@ -188,6 +175,11 @@ class Nopper:
         return
 
     def recv_message(self):
+        try:
+            remove(MP3_FILENAME)
+        except:
+            pass
+
         msg = self.nconn.NopRecv()
         if msg == QUIT_MSG:
             print("[Nopper]: your partner shut me down. I will never understand humans...")
@@ -198,6 +190,10 @@ class Nopper:
         if (self.should_log):
             self.log.write(logged_msg + "\n")
         print(logged_msg)
+
+        #play message
+        gTTS(text=rephrased_msg, lang="en", slow=False).save(MP3_FILENAME)
+        playsound(MP3_FILENAME)
 
         return True
 
