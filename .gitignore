@@ -1,3 +1,8 @@
+api_keys/
+conv_logs/
+old/
+Nopper*.bat
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
